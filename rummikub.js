@@ -28,22 +28,26 @@ class Rummikub {
     this.tiles = [];
     this.users = {};
     this.board = require('./board.json');
-    this.pendingBoard = require('./board.json');
     this.started = false;
     this.pending = false;
+    this.end = false;
     this.currentUser = '';
   }
   addUser(userId) {
     let users = this.getUsers();
-    if (this.users[userId] || this.started || users.length >= 4) return;
+    if (this.users[userId] || this.started || users.length >= 4) return false;
     this.users[userId] = new User();
     if (users.length == 1) {
       this.currentUser = userId;
     }
+    return true;
   }
   getUsers() {
     const users = Object.keys(this.users);
     return users.length ? users : [];
+  }
+  getUserTiles(userId) {
+    return this.users[userId].tiles;
   }
   startGame() {
     //init
@@ -77,14 +81,117 @@ class Rummikub {
     this.shuffle(users);
     this.currentUser = users[0];
   }
-  updateBoard(update, remove) {
-    this.pendingBoard[update.row][update.col] = new Tile(
-      update.config.score,
-      update.config.color,
-      update.config.isJoker,
-      update.config.isOwn,
-      update.config.board
-    ); 
+  skipTurn(userId) {
+    // next player
+    this.nextPlayer(userId);
+    // add user tile
+    let tile = this.tiles.pop();
+    tile.isOwn = true;
+    this.users[userId].tiles.push(tile);
+    return tile;
+  }
+  makeMove(userId, data) {
+    // validate move
+    let moveValid = true;
+    let totalScore = 0;
+    let inPlay = this.users[userId].inPlay;
+
+    // get groups
+    let tileGroups = [];
+    data.board.forEach((row) => {
+      let group = [];
+      row.forEach((tile) => {
+        if (!tile) {
+          if (group.length) {
+            tileGroups.push(group);
+            group = [];
+          }
+          return;
+        }
+        if (tile.isOwn || inPlay) group.push(tile);
+        tile.isOwn = false;
+      });
+    });
+    // validate groups
+    tileGroups.forEach((group) => {
+      if (group.length < 3) moveValid = false;
+
+      let tileScore = 0;
+
+      // check if same numbers
+      let sameNumber = true;
+      let colors = [];
+      group.forEach((tile) => {
+        if (tile.isJoker) return;
+        if (!tileScore) {
+          tileScore = tile.score;
+          colors.push(tile.color);
+          return;
+        }
+        if (tile.score != tileScore || colors.includes(tile.color))
+          sameNumber = false;
+      });
+
+      if (sameNumber) {
+        totalScore += tileScore * group.length;
+        return;
+      }
+
+      // check if sequence
+      let isSequence = true;
+      tileScore = 0;
+      let groupTotal = 0;
+      let groupIndex = 0;
+      let jokerIsFirst = false;
+      group.forEach((tile, tileIndex) => {
+        if (!tileIndex && tile.isJoker) {
+          jokerIsFirst = true;
+          return;
+        }
+        if (!tileScore) {
+          groupTotal = tileScore = parseInt(tile.score);
+          if (jokerIsFirst) {
+            groupTotal += groupTotal - 1;
+          }
+          groupIndex++;
+          return;
+        }
+        if (!tile.isJoker && tileScore + groupIndex != tile.score) {
+          isSequence = false;
+          return;
+        }
+        groupTotal =
+          groupTotal +
+          (tile.isJoker ? tileScore + tileIndex : parseInt(tile.score));
+        groupIndex++;
+      });
+      totalScore += groupTotal;
+
+      if (!sameNumber && !isSequence) {
+        moveValid = false;
+      }
+    });
+
+    console.log('makeMove', moveValid, totalScore);
+
+    if (!moveValid || totalScore < 30 && !this.users[userId].inPlay) return false;
+
+    // update board
+    this.board = data.board;
+    this.users[userId].inPlay = true;
+
+    // next player
+    this.nextPlayer(userId);
+
+    return true;
+  }
+  nextPlayer(userId) {
+    let users = this.getUsers();
+    let index = users.indexOf(userId);
+    index++;
+    if (index >= users.length) index = 0;
+    console.log('nextPlayer', users, users[index]);
+    this.currentUser = users[index];
   }
 
   shuffle(array) {
@@ -101,6 +208,7 @@ class Rummikub {
 class User {
   constructor() {
     this.tiles = [];
+    this.inPlay = false;
   }
 }
 

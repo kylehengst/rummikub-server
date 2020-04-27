@@ -22,7 +22,12 @@ let users = {};
 
 app.get('/stats', function (req, res) {
   res.json({
-    games,
+    games: Object.keys(games).map((id) => {
+      return {
+        id,
+        users: games[id].users,
+      };
+    }),
     users: Object.keys(users).map((id) => {
       return {
         id,
@@ -46,6 +51,7 @@ webSocketServer.sendMessage = function (userId) {};
 //connect client
 webSocketServer.on('connection', function (ws) {
   let userId = '';
+  let gameId = '';
 
   ws.send(utils.createMessage('connected'));
 
@@ -54,16 +60,26 @@ webSocketServer.on('connection', function (ws) {
     const req = utils.parseMessage(message);
     console.log(req);
     if (req.event == 'game') {
+      gameId = req.id;
       initGame(req.data);
     }
     if (req.event == 'start_game') {
       startGame(req.data);
     }
     if (req.event == 'get_game') {
-      sendGame(req.data.id);
+      sendGame(req.data.id, false, true);
     }
     if (req.event == 'update_game_board') {
       updateGameBoard(req.data);
+    }
+    if (req.event == 'reset_game_board') {
+      resetGameBoard();
+    }
+    if (req.event == 'skip_turn') {
+      skipTurn(req.data);
+    }
+    if (req.event == 'make_move') {
+      makeMove(req.data);
     }
     if (req.event == 'user') {
       initUser(req.data);
@@ -82,25 +98,35 @@ webSocketServer.on('connection', function (ws) {
     if (!games[data.id]) {
       games[data.id] = new Rummikub();
     }
-    games[data.id].addUser(userId);
-    sendGame(data.id);
+    let userAdded = games[data.id].addUser(userId);
+    sendGame(data.id, false, true);
+    if (userAdded) {
+      const userIds = games[data.id].getUsers();
+      sendMessage('new_user', { users: getGameUsers(userIds) }, userIds, true);
+    }
   }
 
   function startGame(data) {
     games[data.id].startGame();
-    sendGame(data.id);
+    const userIds = games[gameId].getUsers();
+    sendMessage('game_started', {}, userIds);
+    // sendGame(data.id);
   }
 
-  function sendGame(gameId) {
-    console.log(sendGame, gameId);
+  function sendGame(gameId, update, userOnly) {
+    console.log('sendGame', update, userOnly);
     if (!games[gameId]) {
       ws.send(utils.createMessage('game', { game: null, users: [] }));
       return;
     }
     const userIds = games[gameId].getUsers();
     const gameUsers = getGameUsers(userIds);
-    let data = { game: games[gameId], users: gameUsers };
-    if (!games[gameId].users[userId]) {
+    let data = {
+      game: games[gameId],
+      users: gameUsers,
+      update: update || false,
+    };
+    if (userOnly || !games[gameId].users[userId]) {
       ws.send(utils.createMessage('game', data));
       return;
     }
@@ -114,6 +140,43 @@ webSocketServer.on('connection', function (ws) {
     // games[data.id].updateGameBoard(data.update, data.remove);
     const userIds = games[data.id].getUsers();
     sendMessage('game_board_updated', data, userIds, true);
+  }
+
+  function resetGameBoard(data) {
+    sendGame(gameId, true);
+  }
+
+  function skipTurn() {
+    console.log('skipTurn', gameId, userId);
+    let tile = games[gameId].skipTurn(userId);
+    ws.send(
+      utils.createMessage('new_tile', {
+        tile,
+      })
+    );
+    sendGame(gameId, true);
+    // resetGameBoard();
+    // const userIds = games[gameId].getUsers();
+    // sendMessage('next_user', { current_user: games[gameId].currentUser }, userIds);
+  }
+
+  function makeMove(data) {
+    console.log('makePlay', userId, gameId, data);
+    let valid = games[gameId].makeMove(userId, data);
+    if (valid) {
+      games[gameId].users[userId].tiles = data.tiles;
+      if (!data.tiles.length) {
+        sendMessage(
+          'winner',
+          { winner: { name: users[userId].name } },
+          userIds
+        );
+        games[gameId].end = true;
+      }
+      sendGame(gameId, true);
+      return;
+    }
+    ws.send(utils.createMessage('invalid_move'));
   }
 
   function sendMessage(event, data, userIds, ignore) {
