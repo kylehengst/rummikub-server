@@ -46,6 +46,11 @@ webSocketServer.on('connection', function (ws) {
   let userId = '';
   let gameId = '';
 
+  // heartbeat?
+  let interval = setInterval(()=>{
+    ws.send(utils.createMessage('pulse'));
+  }, 30000)
+
   ws.send(utils.createMessage('connected'));
 
   //receive message
@@ -85,6 +90,10 @@ webSocketServer.on('connection', function (ws) {
   ws.on('close', function () {
     console.log('close', userId);
     if (users[userId] && users[userId].ws) delete users[userId].ws;
+    if (interval) { 
+      clearInterval(interval);
+      interval = null;
+    }
   });
 
   function initGame(data) {
