@@ -21,7 +21,7 @@ let games = {};
 let users = {};
 
 app.get('/stats', function (req, res) {
-  res.json({
+  const data = {
     games: Object.keys(games).map((id) => {
       return {
         id,
@@ -34,22 +34,15 @@ app.get('/stats', function (req, res) {
         name: users[id].name,
       };
     }),
-  });
+  };
+  const str = JSON.stringify(data, null, 4);
+  res.send(`<pre>${str}</pre>`);
+  // res.json();
 });
-
-//broadcast client
-webSocketServer.broadcast = function (data) {
-  //console.log("[broadcast msg]=" + JSON.stringify(data));
-  for (let i in rummikub.users) {
-    rummikub.users[i].ownWebsocket.send(JSON.stringify(data));
-  }
-};
-
-//send specific client
-webSocketServer.sendMessage = function (userId) {};
 
 //connect client
 webSocketServer.on('connection', function (ws) {
+  console.log('connection');
   let userId = '';
   let gameId = '';
 
