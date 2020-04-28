@@ -204,7 +204,7 @@ class Rummikub {
   }
   sendMessage(data, ignoreUserId) {
     this.getUsers().forEach((id) => {
-      if (id == ignoreUserId) return;
+      if (id == ignoreUserId || !this.users[id].ws) return;
       this.users[id].ws.send(data);
     });
   }
