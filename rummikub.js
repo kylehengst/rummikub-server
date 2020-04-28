@@ -1,46 +1,54 @@
 class Rummikub {
   constructor() {
     this.scores = [
-      '1',
-      '2',
-      '3',
-      '4',
-      '5',
-      '6',
-      '7',
-      '8',
-      '9',
-      '10',
-      '11',
-      '12',
-      '13',
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
     ];
     this.colors = [
-      'red',
-      'blue',
-      'yellow',
-      'black',
-      'red',
-      'blue',
-      'yellow',
-      'black',
+      "red",
+      "blue",
+      "yellow",
+      "black",
+      "red",
+      "blue",
+      "yellow",
+      "black",
     ];
     this.tiles = [];
     this.users = {};
-    this.board = require('./board.json');
+    this.board = require("./board.json");
     this.started = false;
     this.pending = false;
     this.end = false;
-    this.currentUser = '';
+    this.currentUser = "";
   }
-  addUser(userId) {
+  addUser(userId, ws) {
     let users = this.getUsers();
-    if (this.users[userId] || this.started || users.length >= 4) return false;
-    this.users[userId] = new User();
+    if (this.users[userId] && !this.users[userId].ws) {
+      this.users[userId].ws = ws;
+      return;
+    }
+    if (this.started || users.length >= 4) return false;
+    this.users[userId] = new User(ws);
     if (users.length == 1) {
       this.currentUser = userId;
     }
     return true;
+  }
+  disconnectUser(userId) {
+    if (!this.users[userId] || !this.users[userId].ws) return;
+    delete this.users[userId].ws;
   }
   getUsers() {
     const users = Object.keys(this.users);
@@ -59,8 +67,8 @@ class Rummikub {
       }
     }
     // add joker tiles
-    this.tiles.push(new Tile('30', '', true));
-    this.tiles.push(new Tile('30', '', true));
+    this.tiles.push(new Tile("30", "", true));
+    this.tiles.push(new Tile("30", "", true));
 
     this.shuffle(this.tiles);
 
@@ -172,9 +180,10 @@ class Rummikub {
       }
     });
 
-    console.log('makeMove', moveValid, totalScore);
+    console.log("makeMove", moveValid, totalScore);
 
-    if (!moveValid || totalScore < 30 && !this.users[userId].inPlay) return false;
+    if (!moveValid || (totalScore < 30 && !this.users[userId].inPlay))
+      return false;
 
     // update board
     this.board = data.board;
@@ -190,8 +199,14 @@ class Rummikub {
     let index = users.indexOf(userId);
     index++;
     if (index >= users.length) index = 0;
-    console.log('nextPlayer', users, users[index]);
+    console.log("nextPlayer", users, users[index]);
     this.currentUser = users[index];
+  }
+  sendMessage(data, ignoreUserId) {
+    this.getUsers().forEach((id) => {
+      if (id == ignoreUserId) return;
+      this.users[id].ws.send(data);
+    });
   }
 
   shuffle(array) {
@@ -206,7 +221,8 @@ class Rummikub {
 }
 
 class User {
-  constructor() {
+  constructor(ws) {
+    this.ws = ws;
     this.tiles = [];
     this.inPlay = false;
   }
