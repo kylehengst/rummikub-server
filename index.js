@@ -88,8 +88,8 @@ webSocketServer.on("connection", function (ws) {
   });
 
   ws.on("close", function () {
-    console.log("close", userId);
-    games[gameId].disconnectUser(userId);
+    console.log("close", userId, gameId);
+    if (games[gameId]) games[gameId].disconnectUser(userId);
     // if (users[userId] && users[userId].ws) delete users[userId].ws;
     if (interval) {
       clearInterval(interval);
