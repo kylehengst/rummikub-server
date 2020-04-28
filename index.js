@@ -126,11 +126,8 @@ webSocketServer.on("connection", function (ws) {
       ws.send(utils.createMessage("game", data));
       return;
     }
-    userIds.forEach((id) => {
-      users[id].ws.send(utils.createMessage("game", data));
-    });
+    games[gameId].sendMessage(utils.createMessage("game", data));
   }
-
   function updateGameBoard(data) {
     if (games[data.id].currentUser != userId) return;
     sendMessage("game_board_updated", data, true);
@@ -195,7 +192,7 @@ webSocketServer.on("connection", function (ws) {
     }
     userId = user.id;
     ws.send(utils.createMessage("user", user));
-    users[user.id].ws = ws;
+    // users[user.id].ws = ws;
   }
   function updateUser(data) {
     users[userId].name = data.name;
