@@ -183,7 +183,7 @@ webSocketServer.on('connection', function (ws) {
 
   function sendMessage(event, data, userIds, ignore) {
     userIds.forEach((id) => {
-      if (ignore && id == userId) return;
+      if ((ignore && id == userId) || !users[id].ws) return;
       users[id].ws.send(utils.createMessage(event, data));
     });
   }
