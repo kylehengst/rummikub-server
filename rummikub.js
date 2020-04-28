@@ -1,37 +1,37 @@
 class Rummikub {
   constructor() {
     this.scores = [
-      "1",
-      "2",
-      "3",
-      "4",
-      "5",
-      "6",
-      "7",
-      "8",
-      "9",
-      "10",
-      "11",
-      "12",
-      "13",
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '10',
+      '11',
+      '12',
+      '13',
     ];
     this.colors = [
-      "red",
-      "blue",
-      "yellow",
-      "black",
-      "red",
-      "blue",
-      "yellow",
-      "black",
+      'red',
+      'blue',
+      'yellow',
+      'black',
+      'red',
+      'blue',
+      'yellow',
+      'black',
     ];
     this.tiles = [];
     this.users = {};
-    this.board = require("./board.json");
+    this.board = require('./board.json');
     this.started = false;
     this.pending = false;
     this.end = false;
-    this.currentUser = "";
+    this.currentUser = '';
   }
   addUser(userId, ws) {
     let users = this.getUsers();
@@ -67,8 +67,8 @@ class Rummikub {
       }
     }
     // add joker tiles
-    this.tiles.push(new Tile("30", "", true));
-    this.tiles.push(new Tile("30", "", true));
+    this.tiles.push(new Tile('30', '', true));
+    this.tiles.push(new Tile('30', '', true));
 
     this.shuffle(this.tiles);
 
@@ -180,7 +180,7 @@ class Rummikub {
       }
     });
 
-    console.log("makeMove", moveValid, totalScore);
+    console.log('makeMove', moveValid, totalScore);
 
     if (!moveValid || (totalScore < 30 && !this.users[userId].inPlay))
       return false;
@@ -199,23 +199,38 @@ class Rummikub {
     let index = users.indexOf(userId);
     index++;
     if (index >= users.length) index = 0;
-    console.log("nextPlayer", users, users[index]);
+    console.log('nextPlayer', users, users[index]);
     this.currentUser = users[index];
   }
-  getState() {
-    let users = this.getUsers().map((id) => {
-      return {
-        id,
+  getState(full, userId) {
+    // let users = this.getUsers().map((id) => {
+    //   return {
+    //     id,
+    //     connected: this.users[id].ws ? true : false,
+    //     tiles: full ? this.users[id].tiles : this.users[id].tiles.length
+    //   };
+    // });
+    let users = {};
+    this.getUsers().forEach((id) => {
+      users[id] = {
         connected: this.users[id].ws ? true : false,
+        tiles:
+          full && userId == id
+            ? this.users[id].tiles
+            : this.users[id].tiles.length,
       };
     });
-    return {
-      tiles: this.tiles,
+    let data = {
+      tiles: this.tiles.length,
       started: this.started,
       end: this.end,
       currentUser: this.currentUser,
       users,
     };
+    if (full) {
+      data.board = this.board;
+    }
+    return data;
   }
   sendMessage(data, ignoreUserId) {
     this.getUsers().forEach((id) => {
