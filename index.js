@@ -25,15 +25,10 @@ app.get("/stats", function (req, res) {
     games: Object.keys(games).map((id) => {
       return {
         id,
-        users: games[id].users,
+        state: games[id].getState(),
       };
     }),
-    users: Object.keys(users).map((id) => {
-      return {
-        id,
-        name: users[id].name,
-      };
-    }),
+    users,
   };
   const str = JSON.stringify(data, null, 4);
   res.send(`<pre>${str}</pre>`);
@@ -90,7 +85,6 @@ webSocketServer.on("connection", function (ws) {
   ws.on("close", function () {
     console.log("close", userId, gameId);
     if (games[gameId]) games[gameId].disconnectUser(userId);
-    // if (users[userId] && users[userId].ws) delete users[userId].ws;
     if (interval) {
       clearInterval(interval);
       interval = null;
@@ -101,7 +95,7 @@ webSocketServer.on("connection", function (ws) {
     if (!games[data.id]) {
       games[data.id] = new Rummikub();
     }
-    let userAdded = games[data.id].addUser(userId);
+    let userAdded = games[data.id].addUser(userId, ws);
     sendGame(data.id, false, true);
     if (userAdded) {
       const userIds = games[data.id].getUsers();

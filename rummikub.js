@@ -202,6 +202,21 @@ class Rummikub {
     console.log("nextPlayer", users, users[index]);
     this.currentUser = users[index];
   }
+  getState() {
+    let users = this.getUsers().map((id) => {
+      return {
+        id,
+        connected: this.users[id].ws ? true : false,
+      };
+    });
+    return {
+      tiles: this.tiles,
+      started: this.started,
+      end: this.end,
+      currentUser: this.currentUser,
+      users,
+    };
+  }
   sendMessage(data, ignoreUserId) {
     this.getUsers().forEach((id) => {
       if (id == ignoreUserId || !this.users[id].ws) return;
