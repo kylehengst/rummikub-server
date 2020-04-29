@@ -18,7 +18,12 @@ const webSocketServer = new WebSocketServer({ server: server });
 console.log('websocket server created');
 
 let games = {};
-let users = {};
+let users = require('./data/users.json');
+
+let savedGames = require('./data/games.json');
+Object.keys(savedGames).forEach(id => {
+  games[id] = new Rummikub(savedGames[id]);
+})
 
 app.get('/stats', function (req, res) {
   const data = {
@@ -72,7 +77,7 @@ webSocketServer.on('connection', function (ws) {
     }
 
     // valid game id required
-    if (req.id && !games[req.id]) {
+    if (!gameId || req.id && !games[req.id]) {
       ws.send(utils.createMessage('reset'));
       return;
     }
@@ -144,6 +149,7 @@ webSocketServer.on('connection', function (ws) {
     games[gameId].sendMessage(utils.createMessage('game', data));
   }
   function updateGameBoard(data) {
+    console.log('updateGameBoard', data);
     if (games[gameId].currentUser != userId) return;
     sendMessage('game_board_updated', data, true);
   }
@@ -164,7 +170,6 @@ webSocketServer.on('connection', function (ws) {
   }
 
   function makeMove(data) {
-    console.log('makePlay', userId, gameId, data);
     let valid = games[gameId].makeMove(userId, data);
     if (valid) {
       games[gameId].users[userId].tiles = data.tiles;
@@ -173,9 +178,19 @@ webSocketServer.on('connection', function (ws) {
         games[gameId].end = true;
       }
       sendGame(gameId, true);
+      // save game
+      saveGames();
       return;
     }
     ws.send(utils.createMessage('invalid_move'));
+  }
+
+  function saveGames() {
+    let data = {};
+    Object.keys(games).forEach((id) => {
+      data[id] = games[gameId].getState(true);
+    });
+    fs.writeFileSync(`./data/games.json`, JSON.stringify(data));
   }
 
   function sendMessage(event, data, ignore) {
@@ -211,6 +226,7 @@ webSocketServer.on('connection', function (ws) {
   }
   function updateUser(data) {
     users[userId].name = data.name;
+    fs.writeFileSync(`./data/users.json`, JSON.stringify(users));
     // ws.send(utils.createMessage('user_updated', games[data.id]));
   }
 });

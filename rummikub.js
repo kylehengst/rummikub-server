@@ -1,5 +1,5 @@
 class Rummikub {
-  constructor() {
+  constructor(data) {
     this.scores = [
       '1',
       '2',
@@ -32,6 +32,11 @@ class Rummikub {
     this.pending = false;
     this.end = false;
     this.currentUser = '';
+    if (data) {
+      Object.keys(data).forEach((key) => {
+        this[key] = data[key];
+      });
+    }
   }
   addUser(userId, ws) {
     let users = this.getUsers();
@@ -213,9 +218,10 @@ class Rummikub {
     let users = {};
     this.getUsers().forEach((id) => {
       users[id] = {
+        inPlay: false,
         connected: this.users[id].ws ? true : false,
         tiles:
-          full && userId == id
+          full || userId == id
             ? this.users[id].tiles
             : this.users[id].tiles.length,
       };
@@ -228,6 +234,7 @@ class Rummikub {
       users,
     };
     if (full) {
+      data.tiles = this.tiles;
       data.board = this.board;
     }
     return data;
