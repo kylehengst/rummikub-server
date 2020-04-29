@@ -144,7 +144,7 @@ webSocketServer.on('connection', function (ws) {
     games[gameId].sendMessage(utils.createMessage('game', data));
   }
   function updateGameBoard(data) {
-    if (games[data.id].currentUser != userId) return;
+    if (games[gameId].currentUser != userId) return;
     sendMessage('game_board_updated', data, true);
   }
 
