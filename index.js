@@ -120,6 +120,7 @@ webSocketServer.on('connection', function (ws) {
     if (userAdded) {
       const userIds = games[data.id].getUsers();
       sendMessage('new_user', { users: getGameUsers(userIds) }, true);
+      saveGames();
     }
   }
 
