@@ -229,13 +229,13 @@ webSocketServer.on('connection', function (ws) {
 
     users[userId].name = data.name;
 
-    let data = {};
+    let savedata = {};
     Object.keys(users).forEach(id => {
       if (!users[id].name) return;
-      data[id] = users[id];
+      savedata[id] = users[id];
     })    
 
-    fs.writeFileSync(`./data/users.json`, JSON.stringify(data));
+    fs.writeFileSync(`./data/users.json`, JSON.stringify(savedata));
     // ws.send(utils.createMessage('user_updated', games[data.id]));
   }
 });
