@@ -108,6 +108,7 @@ class Rummikub {
     let moveValid = true;
     let totalScore = 0;
     let inPlay = this.users[userId].inPlay;
+    let tilesPlayed = 0;
 
     // get groups
     let tileGroups = [];
@@ -121,8 +122,9 @@ class Rummikub {
           }
           return;
         }
-        if (tile.isOwn || inPlay) group.push(tile);
+        if (tile.isOwn) tilesPlayed++;
         tile.isOwn = false;
+        if (tile.isOwn || inPlay) group.push(tile);
       });
     });
     // validate groups
@@ -185,9 +187,9 @@ class Rummikub {
       }
     });
 
-    console.log('makeMove', moveValid, totalScore);
+    console.log('makeMove', moveValid, totalScore, tilesPlayed);
 
-    if (!moveValid || (totalScore < 30 && !this.users[userId].inPlay))
+    if (!tilesPlayed || !moveValid || (totalScore < 30 && !this.users[userId].inPlay))
       return false;
 
     // update board
@@ -218,7 +220,7 @@ class Rummikub {
     let users = {};
     this.getUsers().forEach((id) => {
       users[id] = {
-        inPlay: false,
+        inPlay: this.users[id].inPlay,
         connected: this.users[id].ws ? true : false,
         tiles:
           full || userId == id
