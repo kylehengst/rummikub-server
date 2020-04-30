@@ -127,6 +127,7 @@ webSocketServer.on('connection', function (ws) {
   function startGame(data) {
     games[data.id].startGame();
     sendMessage('game_started', {});
+    saveGames();
     // sendGame(data.id);
   }
 
@@ -168,6 +169,7 @@ webSocketServer.on('connection', function (ws) {
       })
     );
     sendGame(gameId, true);
+    saveGames();
   }
 
   function makeMove(data) {
