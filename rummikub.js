@@ -32,10 +32,13 @@ class Rummikub {
     this.pending = false;
     this.end = false;
     this.currentUser = '';
+    this.winningUser = '';
     if (data) {
       Object.keys(data).forEach((key) => {
         this[key] = data[key];
       });
+    } else {
+      this.created = new Date().getTime();
     }
   }
   addUser(userId, ws) {
@@ -123,8 +126,8 @@ class Rummikub {
           return;
         }
         if (tile.isOwn) tilesPlayed++;
-        tile.isOwn = false;
         if (tile.isOwn || inPlay) group.push(tile);
+        tile.isOwn = false;
       });
     });
     // validate groups
@@ -180,12 +183,14 @@ class Rummikub {
           (tile.isJoker ? tileScore + tileIndex : parseInt(tile.score));
         groupIndex++;
       });
+
       totalScore += groupTotal;
 
       if (!sameNumber && !isSequence) {
         moveValid = false;
       }
     });
+    console.log('group', tileGroups);
 
     console.log('makeMove', moveValid, totalScore, tilesPlayed);
 
@@ -233,7 +238,9 @@ class Rummikub {
       started: this.started,
       end: this.end,
       currentUser: this.currentUser,
+      winningUser: this.winningUser,
       users,
+      created: this.created,
     };
     if (full) {
       data.tiles = this.tiles;

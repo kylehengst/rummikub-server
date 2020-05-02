@@ -27,18 +27,22 @@ Object.keys(savedGames).forEach(id => {
 
 app.get('/stats', function (req, res) {
   const data = {
-    games: Object.keys(games).map((id) => {
-      return {
-        id,
-        state: games[id].getState(),
-      };
-    }),
+    games: getGames(),
     users,
   };
   const str = JSON.stringify(data, null, 4);
   res.send(`<pre>${str}</pre>`);
   // res.json();
 });
+
+function getGames() {
+  return Object.keys(games).map((id) => {
+    return {
+      id,
+      state: games[id].getState(),
+    };
+  })
+}
 
 //connect client
 webSocketServer.on('connection', function (ws) {
@@ -132,14 +136,15 @@ webSocketServer.on('connection', function (ws) {
   }
 
   function sendGame(gameId, update, userOnly) {
-    console.log('sendGame', update, userOnly);
     if (!games[gameId]) {
       ws.send(utils.createMessage('game', { game: null, users: [] }));
       return;
     }
+    console.log('sendGame', update, userOnly);
     const userIds = games[gameId].getUsers();
     const gameUsers = getGameUsers(userIds);
     let data = {
+      id: gameId,
       game: games[gameId].getState(true, userId),
       users: gameUsers,
       update: update || false,
@@ -179,6 +184,7 @@ webSocketServer.on('connection', function (ws) {
       if (!data.tiles.length) {
         sendMessage('winner', { winner: { name: users[userId].name } });
         games[gameId].end = true;
+        games[gameId].winningUser = userId;
       }
       sendGame(gameId, true);
       // save game
@@ -191,7 +197,7 @@ webSocketServer.on('connection', function (ws) {
   function saveGames() {
     let data = {};
     Object.keys(games).forEach((id) => {
-      data[id] = games[gameId].getState(true);
+      data[id] = games[id].getState(true);
     });
     fs.writeFileSync(`./data/games.json`, JSON.stringify(data));
   }
@@ -224,8 +230,7 @@ webSocketServer.on('connection', function (ws) {
       users[user.id] = user;
     }
     userId = user.id;
-    ws.send(utils.createMessage('user', user));
-    // users[user.id].ws = ws;
+    sendUserDetails(userId)
   }
   function updateUser(data) {
 
@@ -236,8 +241,31 @@ webSocketServer.on('connection', function (ws) {
       if (!users[id].name) return;
       savedata[id] = users[id];
     })    
-
+    sendUserDetails(userId);
     fs.writeFileSync(`./data/users.json`, JSON.stringify(savedata));
     // ws.send(utils.createMessage('user_updated', games[data.id]));
+  }
+  function sendUserDetails(id) {
+    if (!users[id]) return;
+    let getUser = users[id];
+    let user = {
+      id,
+      name: getUser.name,
+    }
+    let games = getGames();
+    let userGames = [];
+    games.forEach(game => {
+      if (!game.state.users[id]) return;
+      let gameUsers = [];
+      Object.keys(game.state.users).forEach(gid=>{
+        game.state.users[gid].name = users[gid].name;
+        gameUsers.push(game.state.users[gid]);
+      })
+      game.users = gameUsers;
+      userGames.push(game);
+    });
+    user.games = userGames;
+    // getGameUsers(userIds)
+    ws.send(utils.createMessage('user', user));
   }
 });
