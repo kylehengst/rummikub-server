@@ -1,5 +1,7 @@
 class Rummikub {
   constructor(data) {
+    this.id = 0;
+    this.name = '';
     this.scores = [
       '1',
       '2',
@@ -27,43 +29,62 @@ class Rummikub {
     ];
     this.tiles = [];
     this.users = {};
+    this.sockets = {};
     this.board = require('./board.json');
-    this.started = false;
-    this.pending = false;
-    this.end = false;
-    this.currentUser = '';
-    this.winningUser = '';
+    this.started = 0;
+    this.complete = 0;
+    this.current_user = 0;
+    this.winning_user = 0;
     if (data) {
-      Object.keys(data).forEach((key) => {
-        this[key] = data[key];
-      });
+      this.updateData(data);
     } else {
-      this.created = new Date().getTime();
+      this.date_created = new Date().getTime();
     }
   }
-  addUser(userId, ws) {
+  updateData(data) {
+    console.log('update data', Object.keys(data));
+    Object.keys(data).forEach((key) => {
+      if (key == 'users') {
+        data.users.forEach((user) => {
+          // user.shelf = JSON.parse(user.shelf);
+          this.users[user.uuid] = user;
+        });
+        return;
+      }
+      if (!(data[key] instanceof Array))
+      console.log(key, this[key], data[key]);
+      this[key] = data[key];
+    });
+  }
+  addUser(id, uuid, ws) {
+    console.log('addUser', uuid);
     let users = this.getUsers();
-    if (this.users[userId] && !this.users[userId].ws) {
-      this.users[userId].ws = ws;
+    this.sockets[uuid] = ws;
+    if (this.users[uuid]) {
       return;
     }
     if (this.started || users.length >= 4) return false;
-    this.users[userId] = new User(ws);
+    this.users[uuid] = new User(id, ws);
     if (users.length == 1) {
-      this.currentUser = userId;
+      this.current_user = id;
     }
     return true;
   }
   disconnectUser(userId) {
-    if (!this.users[userId] || !this.users[userId].ws) return;
-    delete this.users[userId].ws;
+    if (!this.sockets[userId]) return;
+    delete this.sockets[userId];
   }
   getUsers() {
     const users = Object.keys(this.users);
     return users.length ? users : [];
   }
+  getUsersAsArray() {
+    return this.getUsers().map(id => {
+      return this.users[id];
+    })
+  }
   getUserTiles(userId) {
-    return this.users[userId].tiles;
+    return this.users[userId].shelf;
   }
   startGame() {
     //init
@@ -84,18 +105,20 @@ class Rummikub {
     let users = this.getUsers();
     users.forEach((id) => {
       let user = this.users[id];
-      user.tiles = [];
-      for (var idx = 0; idx < 14; idx++) {
-        let tile = this.tiles.pop();
-        tile.isOwn = true;
-        user.tiles.push(tile);
+      user.shelf = JSON.parse(JSON.stringify(require('./shelf.json')));
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 7; col++) {
+          let tile = this.tiles.pop();
+          tile.isOwn = true;
+          user.shelf[row][col] = tile;
+        }
       }
     });
 
-    this.started = true;
+    this.started = 1;
 
     this.shuffle(users);
-    this.currentUser = users[0];
+    this.current_user = this.users[users[0]].id;
   }
   skipTurn(userId) {
     // next player
@@ -103,14 +126,22 @@ class Rummikub {
     // add user tile
     let tile = this.tiles.pop();
     tile.isOwn = true;
-    this.users[userId].tiles.push(tile);
+
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < this.users[userId].shelf[0].length; col++) {
+        if (!this.users[userId].shelf[row][col]) continue;
+        this.users[userId].shelf[row][col] = tile;
+        break;
+      }
+    }
+
     return tile;
   }
   makeMove(userId, data) {
     // validate move
     let moveValid = true;
     let totalScore = 0;
-    let inPlay = this.users[userId].inPlay;
+    let in_play = this.users[userId].in_play;
     let tilesPlayed = 0;
 
     // get groups
@@ -126,7 +157,7 @@ class Rummikub {
           return;
         }
         if (tile.isOwn) tilesPlayed++;
-        if (tile.isOwn || inPlay) group.push(tile);
+        if (tile.isOwn || in_play) group.push(tile);
         tile.isOwn = false;
       });
     });
@@ -194,12 +225,16 @@ class Rummikub {
 
     console.log('makeMove', moveValid, totalScore, tilesPlayed);
 
-    if (!tilesPlayed || !moveValid || (totalScore < 30 && !this.users[userId].inPlay))
+    if (
+      !tilesPlayed ||
+      !moveValid ||
+      (totalScore < 30 && !this.users[userId].in_play)
+    )
       return false;
 
     // update board
     this.board = data.board;
-    this.users[userId].inPlay = true;
+    this.users[userId].in_play = true;
 
     // next player
     this.nextPlayer(userId);
@@ -211,36 +246,29 @@ class Rummikub {
     let index = users.indexOf(userId);
     index++;
     if (index >= users.length) index = 0;
-    console.log('nextPlayer', users, users[index]);
-    this.currentUser = users[index];
+    console.log('nextPlayer', userId, users, users[index]);
+    this.current_user = this.users[users[index]].id;
   }
   getState(full, userId) {
-    // let users = this.getUsers().map((id) => {
-    //   return {
-    //     id,
-    //     connected: this.users[id].ws ? true : false,
-    //     tiles: full ? this.users[id].tiles : this.users[id].tiles.length
-    //   };
-    // });
     let users = {};
     this.getUsers().forEach((id) => {
-      users[id] = {
-        inPlay: this.users[id].inPlay,
-        connected: this.users[id].ws ? true : false,
-        tiles:
-          full || userId == id
-            ? this.users[id].tiles
-            : this.users[id].tiles.length,
-      };
+      let data = JSON.parse(JSON.stringify(this.users[id]));
+      data.connected = this.sockets[id] ? true : false,
+      data.shelf = full || userId == id
+      ? data.shelf
+      : data.shelf.flat().length,
+      users[id] = data;
     });
     let data = {
+      id: this.id,
+      name: this.name,
       tiles: this.tiles.length,
       started: this.started,
-      end: this.end,
-      currentUser: this.currentUser,
-      winningUser: this.winningUser,
+      complete: this.complete,
+      current_user: this.current_user,
+      winning_user: this.winning_user,
       users,
-      created: this.created,
+      date_created: this.date_created,
     };
     if (full) {
       data.tiles = this.tiles;
@@ -250,8 +278,8 @@ class Rummikub {
   }
   sendMessage(data, ignoreUserId) {
     this.getUsers().forEach((id) => {
-      if (id == ignoreUserId || !this.users[id].ws) return;
-      this.users[id].ws.send(data);
+      if (id == ignoreUserId || !this.sockets[id]) return;
+      this.sockets[id].send(data);
     });
   }
 
@@ -267,10 +295,11 @@ class Rummikub {
 }
 
 class User {
-  constructor(ws) {
+  constructor(id, ws) {
+    this.id = id;
     this.ws = ws;
-    this.tiles = [];
-    this.inPlay = false;
+    this.shelf = [[],[]];
+    this.in_play = false;
   }
 }
 
