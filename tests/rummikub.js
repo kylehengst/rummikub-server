@@ -1,4 +1,4 @@
-const Rummikub = require('./rummikub');
+const Rummikub = require('../rummikub');
 
 let game = new Rummikub();
 

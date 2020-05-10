@@ -10,7 +10,7 @@ const crypto = require('crypto');
 const sqlite3 = require('sqlite3').verbose();
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const db = new sqlite3.Database('./db.db', (err) => {
+const db = new sqlite3.Database('./data/db.db', (err) => {
   if (err) {
     return console.error(err.message);
   }
