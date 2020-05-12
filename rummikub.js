@@ -127,10 +127,14 @@ class Rummikub {
     let tile = this.tiles.pop();
     tile.isOwn = true;
 
+    let done = false;
+
     for (let row = 0; row < 2; row++) {
+      if (done) break;
       for (let col = 0; col < this.users[userId].shelf[0].length; col++) {
-        if (!this.users[userId].shelf[row][col]) continue;
+        if (this.users[userId].shelf[row][col]) continue;
         this.users[userId].shelf[row][col] = tile;
+        done = true;
         break;
       }
     }

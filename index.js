@@ -325,12 +325,13 @@ webSocketServer.on('connection', function (ws) {
         tile,
       })
     );
+    // add tile to shelf
     sendGame(GAME_NAME, true);
     saveGame(GAME_NAME, liveGames[GAME_NAME]);
     let user = liveGames[GAME_NAME].users[USER_UUID];
-    user.shelf = data.shelf;
+    // user.shelf = data.shelf;
     saveGameUser(USER_ID, liveGames[GAME_NAME].id, {
-      shelf: data.shelf,
+      shelf: user.shelf,
       in_play: user.in_play,
     });
   }
