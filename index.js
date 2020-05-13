@@ -318,6 +318,8 @@ webSocketServer.on('connection', function (ws) {
   }
 
   function skipTurn(data) {
+    let user = liveGames[GAME_NAME].users[USER_UUID];
+    user.shelf = data.shelf;
     console.log('skipTurn', GAME_NAME, USER_NAME);
     let tile = liveGames[GAME_NAME].skipTurn(USER_UUID);
     ws.send(
@@ -328,7 +330,6 @@ webSocketServer.on('connection', function (ws) {
     // add tile to shelf
     sendGame(GAME_NAME, true);
     saveGame(GAME_NAME, liveGames[GAME_NAME]);
-    let user = liveGames[GAME_NAME].users[USER_UUID];
     // user.shelf = data.shelf;
     saveGameUser(USER_ID, liveGames[GAME_NAME].id, {
       shelf: user.shelf,
