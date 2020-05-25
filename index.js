@@ -194,6 +194,9 @@ webSocketServer.on('connection', function (ws) {
     if (req.event == 'make_move') {
       makeMove(req.data);
     }
+    if (req.event == 'rematch') {
+      rematch();
+    }
   });
 
   ws.on('close', function () {
@@ -352,9 +355,9 @@ webSocketServer.on('connection', function (ws) {
         in_play: user.in_play ? 1 : 0,
       });
 
-      let userTiles = user.shelf.flat().filter(tile => {
+      let userTiles = user.shelf.flat().filter((tile) => {
         return tile;
-      })
+      });
 
       if (!userTiles.length) {
         sendMessage('winner', { winner: { name: user.gamer_tag } });
@@ -367,6 +370,51 @@ webSocketServer.on('connection', function (ws) {
       sendGame(GAME_NAME, true);
       // save game
     })();
+  }
+
+  function rematch() {
+    (async () => {
+      // create new game
+      let gameName = utils.createUUID();
+      let rummikub = new Rummikub();
+      let gameId = await createGame(gameName, rummikub);
+
+      // add users
+      let users = liveGames[GAME_NAME].getUsers();
+      for (let i = 0; i < users.length; i++) {
+        let user = liveGames[GAME_NAME].users[users[i]];
+        rummikub.addUser(user.id, users[i], user.ws);      
+      }
+      
+      // start game
+      rummikub.startGame();
+
+      // add and save user tiles
+      let usersArray = rummikub.getUsersAsArray();
+      for (let i = 0; i < usersArray.length; i++) {
+        await addGameUser(usersArray[i].id, gameId);
+        await saveGameUser(usersArray[i].id, gameId, {
+          shelf: usersArray[i].shelf,
+          in_play: 0,
+        });         
+      }      
+
+      // update users
+      let gameUsers = await getGameUsers(gameId);
+      rummikub.updateData({ users: gameUsers });
+
+      // save game
+      await saveGame(gameName, rummikub);
+
+      // add to live games
+      rummikub.id = gameId;
+      rummikub.name = gameName;
+      liveGames[gameName] = rummikub;
+
+      sendMessage('rematch', { id: gameName });
+    })().catch((err) => {
+      console.log('initGame', err);
+    });
   }
 
   function saveGames() {
@@ -669,7 +717,7 @@ function addGameUser(userId, gameId) {
   return p;
 }
 
-function saveGame(gameId, rummikub) {
+function saveGame(name, rummikub) {
   let p = new Promise((resolve, reject) => {
     let state = rummikub.getState(true);
     let sql = `UPDATE games 
@@ -691,7 +739,7 @@ function saveGame(gameId, rummikub) {
         state.complete,
         state.current_user,
         state.winning_user,
-        gameId,
+        name,
       ],
       function (err) {
         if (err) {
