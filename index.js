@@ -610,6 +610,7 @@ function getUserGames(username) {
         LEFT JOIN users AS C ON C.id = G.current_user
         LEFT JOIN users AS W ON W.id = G.winning_user
         WHERE U.username = ?
+        ORDER BY G.id DESC
         LIMIT 10
       `;
       db.all(sql, [username], (err, rows) => {
