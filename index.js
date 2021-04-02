@@ -197,6 +197,9 @@ webSocketServer.on('connection', function (ws) {
     if (req.event == 'rematch') {
       rematch();
     }
+    if (req.event == 'remove') {
+      remove();
+    }
   });
 
   ws.on('close', function () {
@@ -370,6 +373,16 @@ webSocketServer.on('connection', function (ws) {
       sendGame(GAME_NAME, true);
       // save game
     })();
+  }
+
+  function remove() {
+    (async () => {
+      await deleteGameUsers(liveGames[GAME_NAME].id);
+      await deleteGame(liveGames[GAME_NAME].id);
+      sendMessage('removed', { id: GAME_NAME });
+    })().catch((err) => {
+      console.log('remove', err);
+    });
   }
 
   function rematch() {
@@ -695,6 +708,51 @@ function createGame(gameId, rummikub) {
           return;
         }
         resolve(this.lastID);
+      }
+    );
+  });
+  return p;
+}
+
+function deleteGameUsers(gameId) {
+  let p = new Promise((resolve, reject) => {
+    let sql = `
+    DELETE FROM games_users WHERE game_id = ?
+  `;
+    // let state = rummikub.getState(true);
+    db.run(
+      sql,
+      [
+        gameId,
+      ],
+      function (err) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(true);
+      }
+    );
+  });
+  return p;
+}
+
+function deleteGame(gameId) {
+  let p = new Promise((resolve, reject) => {
+    let sql = `
+    DELETE FROM games WHERE id = ?
+  `;
+    db.run(
+      sql,
+      [
+        gameId,
+      ],
+      function (err) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(true);
       }
     );
   });
