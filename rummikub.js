@@ -125,6 +125,7 @@ class Rummikub {
     this.nextPlayer(userId);
     // add user tile
     let tile = this.tiles.pop();
+    if (!tile) return false;
     tile.isOwn = true;
 
     let done = false;

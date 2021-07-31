@@ -328,6 +328,7 @@ webSocketServer.on('connection', function (ws) {
     user.shelf = data.shelf;
     console.log('skipTurn', GAME_NAME, USER_NAME);
     let tile = liveGames[GAME_NAME].skipTurn(USER_UUID);
+    if (tile)
     ws.send(
       utils.createMessage('new_tile', {
         tile,
